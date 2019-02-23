@@ -76,17 +76,21 @@ class camera:
 
             self.t = self.vertex_x + self.vertex_y + self.vertex_z
             self.t = self.d / self.t
-
-            self.screen_point = [(self.vertex_pos[0] + self.t * self.a) + (w/2),self.vertex_pos[1] + self.t * self.b,(self.vertex_pos[2] + self.t * self.c) + (h/2)]
-
+            self.dist = dist((self.vertex_pos[0] + self.t * self.a, self.vertex_pos[1] + self.t * self.b, (self.vertex_pos[2] + self.t * self.c)), self.vertex_pos)
+            self.screen_point = [(self.vertex_pos[0] + self.t * self.a) + (w/2) + self.x, self.vertex_pos[1] + self.t * self.b + self.y, (self.vertex_pos[2] + self.t * self.c) + (h/2) + self.z]
             self.positions.append((self.screen_point[0],self.screen_point[2]))
 
-            #print ("p = {}".format((self.screen_point[0],self.screen_point[2])))
-            #print ("--------------------")
-
             pg.draw.circle(screen,(255,255,255),(int(self.screen_point[0]),int(self.screen_point[2])),2,0)
+            pg.draw.circle(screen, (255, 0, 0),(int(self.vertex.get_pos()[1] + 100), int(self.vertex.get_pos()[2] + 100)), 2, 0)
+            pg.draw.circle(screen, (0, 255, 0),(int(self.vertex.get_pos()[0] + 400), int(self.vertex.get_pos()[2] + 100)), 2, 0)
+            pg.draw.circle(screen, (0, 0, 255),(int(self.vertex.get_pos()[0] + 400), int(self.vertex.get_pos()[1] + 300)), 2, 0)
 
         pg.draw.line(screen,(100,100,100),self.positions[0],self.positions[1],1)
+    def display(self,objects):
+        for self.object in objects:
+            for self.edge in self.object.get_edges():
+                self.draw_edge(self.edge)
+
 
 class vertice:
     def __init__(self,x,y,z):
@@ -94,10 +98,6 @@ class vertice:
         self.y = y
         self.z = z
         self.distance = 0
-    def set_distance(self,distance):
-        self.distance = distance
-    def get_distance(self):
-        return self.distance
     def get_pos(self):
         return self.x,self.y,self.z
     def set_pos(self,x,y,z):
@@ -107,11 +107,13 @@ class vertice:
 
 class cube:
     def __init__(self,scale):
+        #initialize variables
         self.vertices = []
         self.edges = []
         self.pivot_point = [0,0,0]
         self.positions = []
 
+        #set vertices of cube
         for x in [-scale,scale]:
             for y in [-scale,scale]:
                 for z in [-scale,scale]:
@@ -120,91 +122,93 @@ class cube:
                     self.pivot_point[1] += y
                     self.pivot_point[2] += z
                     self.positions.append((x,y,z))
-                    #if len(self.vertices) > 1:
-                        #self.edges.append((self.vertices[-1],self.vertices[-2]))
 
-        for self.index in range(0,len(self.vertices)):
-            self.vertices[self.index].set_distance(dist(self.vertices[self.index].get_pos(),self.pivot_point))
-            for self.i in range(0,len(self.vertices)):
-                if self.i != self.index:
-                    self.edges.append((self.vertices[self.index],self.vertices[self.i]))
+        #set edges of cube
+        self.edges.append((self.vertices[0], self.vertices[1]))
+        self.edges.append((self.vertices[0], self.vertices[2]))
+        self.edges.append((self.vertices[0], self.vertices[4]))
+        self.edges.append((self.vertices[3], self.vertices[1]))
+        self.edges.append((self.vertices[3], self.vertices[2]))
+        self.edges.append((self.vertices[3], self.vertices[7]))
+        self.edges.append((self.vertices[6], self.vertices[4]))
+        self.edges.append((self.vertices[6], self.vertices[7]))
+        self.edges.append((self.vertices[6], self.vertices[2]))
+        self.edges.append((self.vertices[5], self.vertices[1]))
+        self.edges.append((self.vertices[5], self.vertices[7]))
+        self.edges.append((self.vertices[5], self.vertices[4]))
 
-
-        #self.pivot_point[0] = self.pivot_point[0]/len(self.vertices)
-        #self.pivot_point[1] = self.pivot_point[1]/len(self.vertices)
-        #self.pivot_point[2] = self.pivot_point[2]/len(self.vertices)
-        #print(self.pivot_point)
         self.pivot_point = average(self.positions)
 
-        #for self.index in range(0,len(self.vertices)):
-        #    if self.index % 2 == 0:
-        #        self.edges.append((self.vertices[self.index],self.vertices[self.index - 1]))
-
     def rotate(self,velocity):
+        #rotate around each axis
         for index in range(0,3):
-            self.axis = [velocity[0],False,velocity[1]][index]
-            print ("axis = {}".format(self.axis))
-            if self.axis:
-                for self.vertex in self.vertices:
-                    self.pos = list(self.vertex.get_pos())
-                    self.distance = self.vertex.get_distance()
-                    self.rise = self.pos[index - 2] - self.pivot_point[index-2]
-                    self.run = self.pos[index - 1] - self.pivot_point[index-1]
-                    try:
-                        self.slope = self.rise/self.run
-                        self.angle = degrees(atan(self.slope))
-                    except:
-                        if self.rise > 0:
-                            self.angle = 90
-                        elif self.rise < 0:
-                            self.angle = -90
-                        elif self.rise == 0:
-                            self.angle = 0
-                    if self.run < 0:
-                        self.angle += 180
-                    self.angle += self.axis
+            self.axis = [velocity[0],velocity[1],velocity[2]][index]
 
-                    #print ("dist = " + str(self.distance))
+            #rotate every vertex around the pivot point
+            for self.vertex in self.vertices:
+                self.pos = list(self.vertex.get_pos())
+                self.distance = dist((self.vertex.get_pos()[index-2], self.vertex.get_pos()[index-1]),(self.pivot_point[index-2],self.pivot_point[index-1]))
+                self.rise = self.pos[index-2] - self.pivot_point[index-2]
+                self.run = self.pos[index-1] - self.pivot_point[index-1]
 
-                    if self.vertices.index(self.vertex) == 1:
-                        print ("{} {}".format(self.vertices.index(self.vertex), self.angle))
-                        print (self.pos)
-                        print (self.distance)
-                        print ("---------------------")
+                #account for angle irregularities
+                try:
+                    self.slope = self.rise/self.run
+                    self.angle = degrees(atan(self.slope))
+                except:
+                    if self.rise > 0:
+                        self.angle = 90
+                    elif self.rise < 0:
+                        self.angle = -90
+                    elif self.rise == 0:
+                        self.angle = 0
+                if self.run < 0:
+                    self.angle += 180
 
-                    self.x = self.pos[0]
-                    self.y = self.pos[1]
-                    self.z = self.pos[2]
+                self.angle += self.axis
 
-                    #print ("pos = " + str(pos))
-                    self.pos[index-2] = self.distance * sin(radians(self.angle))
-                    self.pos[index-1] = self.distance * cos(radians(self.angle))
-                    #print("pos = " + str(pos))
+                #update of vertex
+                self.pos[index-2] = self.distance * sin(radians(self.angle))
+                self.pos[index-1] = self.distance * cos(radians(self.angle))
 
-                    self.vertex.set_pos(self.pos[0],self.pos[1],self.pos[2])
+                self.x = self.pos[0]
+                self.y = self.pos[1]
+                self.z = self.pos[2]
 
-                    pg.draw.line(screen,(255,0,0),(self.pos[index-2],self.pos[index-1]),(self.pivot_point[index-2],self.pivot_point[index-1]),1)
+                self.vertex.set_pos(self.x, self.y, self.z)
 
+    def get_edges(self):
+        return self.edges
 
     def display(self):
         for self.edge in self.edges:
             cam.draw_edge(self.edge)
 
-cam = camera(0, 100, 0, 1)
-object = cube(50)
+cam = camera(0, 100, 0, 1) #define camera
+object = cube(50) #make a cube object
+previous_mouse_pos = [0, 0]
+current_mouse_pos = [0, 0]
+objects = [object] #stores every object in a scene
 
 running = True
+
 while running:
     for event in pg.event.get():
         if event.type == pg.QUIT:
             running = False
 
+    current_mouse_pos = pg.mouse.get_pos()
+
+    #draw elements to the screen
     screen.fill((0,0,0))
 
-    if pg.mouse.get_pressed()[0] or True:
-        #object.rotate(pg.mouse.get_rel())
-        object.rotate((1,0))
-    object.display()
+    if pg.mouse.get_pressed()[0]:
+        vx,vy = current_mouse_pos[0] - previous_mouse_pos[0], current_mouse_pos[1] - previous_mouse_pos[1]
+        object.rotate((vy,0,vx))
 
+    cam.display(objects) #display all the objects to the screen
+    previous_mouse_pos = current_mouse_pos
+
+    #update screen
     pg.display.update()
     clock.tick(60)
