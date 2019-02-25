@@ -174,12 +174,14 @@ class sphere:
         for index in range(0,3):
             self.axis = [velocity[0],velocity[1],velocity[2]][index]
 
+            print ("wow = {}".format(self.vertices))
+
             #rotate every vertex around the pivot point
             for self.vertex in self.vertices:
                 self.pos = list(self.vertex.get_pos())
-                self.distance = dist((self.vertex.get_pos()[index-2], self.vertex.get_pos()[index-1]),(self.pivot_point[index-2],self.pivot_point[index-1]))
-                self.rise = self.pos[index-2] - self.pivot_point[index-2]
-                self.run = self.pos[index-1] - self.pivot_point[index-1]
+                self.distance = dist((self.vertex.get_pos()[index-2], self.vertex.get_pos()[index-1]),(0,0))
+                self.rise = self.pos[index-2]# - self.pivot_point[index-2]
+                self.run = self.pos[index-1]# - self.pivot_point[index-1]
 
                 #account for angle irregularities
                 try:
@@ -262,6 +264,7 @@ class cube:
         for index in range(0,3):
             self.axis = [velocity[0],velocity[1],velocity[2]][index]
 
+
             #rotate every vertex around the pivot point
             for self.vertex in self.vertices:
                 self.pos = list(self.vertex.get_pos())
@@ -285,7 +288,7 @@ class cube:
 
                 self.angle += self.axis
 
-                #update of vertex
+                #update pos of vertex
                 self.pos[index-2] = self.distance * sin(radians(self.angle))
                 self.pos[index-1] = self.distance * cos(radians(self.angle))
 
@@ -323,7 +326,7 @@ while running:
 
     if pg.mouse.get_pressed()[0] or True:
         vx,vy = current_mouse_pos[0] - previous_mouse_pos[0], current_mouse_pos[1] - previous_mouse_pos[1]
-        #object.rotate((1,0,0))
+        object.rotate((1,1,0))
 
     #cam.rotate(0,0,1)
     cam.display(objects) #display all the objects to the screen
@@ -331,4 +334,4 @@ while running:
 
     #update screen
     pg.display.update()
-    clock.tick(10)
+    clock.tick(60)
