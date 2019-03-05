@@ -57,18 +57,71 @@ def find_plane_equation(point1,point2,point3):
 
     return d, a, b, c
 
-class edit():
-    def __init__(self,selected,vertices):
-        self.selected = selected
-        self.vertices = vertices
+def pivot(pivot_point, coordinate, x_rot, y_rot, z_rot):
+    rotations = [x_rot, y_rot, z_rot]
+
+    for axis_index in range(0,3):
+        distance = dist((coordinate[axis_index - 2], coordinate[axis_index - 1]), (pivot_point[axis_index - 2], pivot_point[axis_index - 1]))
+        angle = 0
+        rise = coordinate[axis_index - 2] - pivot_point[axis_index - 2]
+        run = coordinate[axis_index - 1] - pivot_point[axis_index - 1]
+        try:
+            slope = rise / run
+            angle = degrees(atan(slope))
+        except:
+            if rise > 0:
+                angle = 90
+            elif rise < 0:
+                angle = -90
+
+        if run < 0:
+            angle += 180
+
+        angle += rotations[axis_index]
+        print (coordinate[axis_index - 2])
+        print (distance * sin(radians(angle)))
+        coordinate[axis_index - 2] = distance * sin(radians(angle))
+        coordinate[axis_index - 1] = distance * cos(radians(angle))
+
+    return coordinate
+
+def move_to_target(xe,ye,target_pos, displace):
+    #initialize variables
+    target_x = target_pos[0]
+    target_y = target_pos[1]
+
+    #calculate the angle needed to move to the desired position
+    risee = target_y - ye
+    rune = target_x - xe
+
+    anglee = 0
+
+    #account for angle irregularities
+    try:
+        slope = risee/rune
+        anglee = degrees(atan(slope))
+    except:
+        if risee > 0:
+            anglee = 90
+        elif risee < 0:
+            anglee = -90
+        elif risee == 0:
+            anglee = 0
+    if rune < 0:
+        anglee += 180
+    while anglee < 0:
+        anglee += 360
+    while anglee > 360:
+        anglee -= 360
+
+    return anglee
 
 class vertice:
     def __init__(self,x,y,z):
         self.x = x
         self.y = y
         self.z = z
-        self.distance = 0
-        self.screen_pos = [0,0]
+        self.screen_pos = [0,0] #position of point on the screen
         self.vertice_selected = False
     def get_pos(self):
         return self.x,self.y,self.z
@@ -91,29 +144,24 @@ class camera:
         self.x = x
         self.y = y
         self.z = z
-        self.slope = 0
-        self.displace = 100 * scale
+        self.angle_x = 0
+        self.angle_y = 0
+        self.angle_z = 0
         self.pivot_point = [self.x, self.y, self.z]
         self.focal_length = focal_length
-
-        self.x_edges = [[[self.x + self.displace,self.y + self.displace,self.z + self.displace],[self.x + self.displace,self.y + self.displace,self.z - self.displace]],[[self.x - self.displace,self.y + self.displace,self.z + self.displace],[self.x - self.displace,self.y + self.displace,self.z - self.displace]]]
-        self.y_edges = [[[self.x + self.displace, self.y + self.displace, self.z + self.displace], [self.x - self.displace, self.y + self.displace, self.z + self.displace]],[[self.x + self.displace, self.y + self.displace, self.z - self.displace], [self.x - self.displace, self.y + self.displace, self.z - self.displace]]]
-        self.edges = [self.x_edges,self.y_edges]
-
-        self.d, self.a, self.b, self.c = list(find_plane_equation(self.x_edges[0][0],self.x_edges[0][1], self.x_edges[1][0]))
-        self.plane_equation = [self.d, self.a, self.b, self.c]
+        #self.d, self.a, self.b, self.c = list(find_plane_equation(self.x_edges[0][0],self.x_edges[0][1], self.x_edges[1][0]))
+        #self.plane_equation = [self.d, self.a, self.b, self.c]
 
     def draw_edge(self,edge,perspective):
         self.positions = []
         for self.vertex in edge:
-            self.vertex_pos = self.vertex.get_pos()
-            self.vertex_x = self.vertex_pos[0] - self.a
-            self.vertex_y = self.vertex_pos[1] - self.b
-            self.vertex_z = self.vertex_pos[2] - self.c
+            self.vertex_pos = list(self.vertex.get_pos())
+            print (self.vertex_pos)
+            self.vertex_pos = pivot([self.x, self.y, self.z], self.vertex_pos, -self.angle_x, -self.angle_y, -self.angle_z)
+            self.vertex_x = self.vertex_pos[0]
+            self.vertex_y = self.vertex_pos[1]
+            self.vertex_z = self.vertex_pos[2]
             if perspective:
-                self.vertex_x = self.vertex_pos[0]
-                self.vertex_y = self.vertex_pos[1]
-                self.vertex_z = self.vertex_pos[2]
                 #find y coordinate on screen
                 self.rise = self.vertex_z - self.z
                 self.run = self.vertex_y - self.y
@@ -142,14 +190,12 @@ class camera:
                 self.positions.append((self.screen_x + (w/2), self.screen_y + (h/2)))
                 self.screen_point = [self.screen_x + (w/2), self.y, self.screen_y + (h/2)]
 
-            else:
-                self.t = self.vertex_x + self.vertex_y + self.vertex_z
-                self.t = self.d / self.t
-                self.dist = dist((self.vertex_pos[0] + self.t * self.a, self.vertex_pos[1] + self.t * self.b, (self.vertex_pos[2] + self.t * self.c)), self.vertex_pos)
-                self.screen_point = [(self.vertex_pos[0] + self.t * self.a) + (w/2) + self.x, self.vertex_pos[1] + self.t * self.b + self.y, (self.vertex_pos[2] + self.t * self.c) + (h/2) + self.z]
-                self.vertex.set_screen_pos(self.screen_point[0], self.screen_point[2])
-                self.positions.append((self.screen_point[0],self.screen_point[2]))
+            elif not perspective:
+                self.vertex.set_screen_pos(self.vertex_x + (w/2), self.vertex_z + (h/2))
+                self.positions.append((self.vertex_x + (w/2), self.vertex_z + (h/2)))
+                self.screen_point = [self.vertex_x + (w / 2), self.vertex_y, self.vertex_z + (h / 2)]
 
+            #draw vertices only in edit_mode
             if edit_mode:
                 if self.vertex.selected() and edit_mode:
                     pg.draw.circle(screen,(0,200,255),(int(self.screen_point[0]), int(self.screen_point[2])),2,0)
@@ -165,44 +211,14 @@ class camera:
         pg.draw.line(screen, (0, 0, 255), (edge[0].get_pos()[0] + 400, edge[0].get_pos()[1] + 300),(edge[1].get_pos()[0] + 400, edge[1].get_pos()[1] + 300), 1)
 
     def rotate(self,x_rot,y_rot,z_rot):
-        for self.axis_index in range(0,3):
-            self.axis = [x_rot,y_rot,z_rot][self.axis_index]
-            for self.edge_axis_index in range(0,len(self.edges)):
-                for self.edge_index in range(0,2):
-                    for self.pos_index in range(0,2):
-                        self.pos = self.edges[self.edge_axis_index][self.edge_index][self.pos_index]
-                        print ("pos = {}".format(self.pos))
-                        self.distance = dist((self.pos[self.axis_index - 2], self.pos[self.axis_index - 1]), (self.pivot_point[self.axis_index - 2], self.pivot_point[self.axis_index - 1]))
-                        print ("dist = {}")
-                        self.rise = self.pos[self.axis_index - 2] - self.pivot_point[self.axis_index - 2]
-                        self.run  = self.pos[self.axis_index - 1] - self.pivot_point[self.axis_index - 1]
+        self.angle_x += x_rot
+        self.angle_y += y_rot
+        self.angle_z += z_rot
 
-                        # account for angle irregularities
-                        try:
-                            self.slope = self.rise / self.run
-                            self.angle = degrees(atan(self.slope))
-                        except:
-                            if self.rise > 0:
-                                self.angle = 90
-                            elif self.rise < 0:
-                                self.angle = -90
-                            elif self.rise == 0:
-                                self.angle = 0
-                        if self.run < 0:
-                            self.angle += 180
-
-                        self.angle += self.axis
-
-                        #update pos of vertex
-                        self.pos[self.axis_index - 2] = self.distance * sin(radians(self.angle))
-                        self.pos[self.axis_index - 1] = self.distance * cos(radians(self.angle))
-
-                        #self.x = self.pos[0]
-                        #self.y = self.pos[1]
-                        #self.z = self.pos[2]
-
-                        self.edges[self.edge_axis_index][self.edge_index][self.pos_index] = self.pos
-        self.d, self.a, self.b, self.c = find_plane_equation(self.x_edges[0][0], self.x_edges[0][1], self.x_edges[1][0])
+    def translate(self, displace):
+        self.x += displace * sin(radians(self.angle_z))
+        self.y += displace * cos(radians(self.angle_z))
+        self.z += displace * sin(radians(self.angle_x))
 
     def display(self,objects, perspective):
         for self.object in objects:
@@ -416,7 +432,7 @@ class cube:
         for self.edge in self.edges:
             cam.draw_edge(self.edge,True)
 
-cam = camera(0, 100, 0, 1, 10) #define camera
+cam = camera(0, 100, 0, 1, 1) #define camera
 object = cube(50) #make a cube object
 #object = sphere(0,0,0,1,16,8)
 previous_mouse_pos = [0, 0]
@@ -435,7 +451,7 @@ while running:
         if event.type == pg.QUIT:
             running = False
         if event.type == pg.KEYUP:
-            if event.key == pg.K_5:
+            if event.key == pg.K_KP5:
                 perspective = [True,False][[True, False].index(perspective) - 1]
             if event.key == pg.K_TAB:
                 edit_mode = [True,False][[True,False].index(edit_mode) - 1]
@@ -443,6 +459,10 @@ while running:
             if event.key == pg.K_g and edit_mode:
                 move_vert = True
         if event.type == pg.MOUSEBUTTONDOWN:
+            if event.button == 4:
+                cam.translate(-5)
+            elif event.button == 5:
+                cam.translate(5)
             print ("yeee")
             if edit_mode:
                 move_vert = False
@@ -455,8 +475,9 @@ while running:
 
     vx, vy = current_mouse_pos[0] - previous_mouse_pos[0], current_mouse_pos[1] - previous_mouse_pos[1]
 
-    if pg.mouse.get_pressed()[0]:
-        object.rotate((vy,0,-vx))
+    if pg.mouse.get_pressed()[1]:
+        #object.rotate((vy,0,-vx))
+        cam.rotate(vy,0,vx)
         #object.rotate((3, 1, 2))
 
     keys = pg.key.get_pressed()
@@ -466,6 +487,14 @@ while running:
             object.edit()
         else:
             move_vert = False
+    if keys[pg.K_KP4]:
+        cam.rotate(0, 0, 2.5)
+    elif keys[pg.K_KP6]:
+        cam.rotate(0, 0, -2.5)
+    elif keys[pg.K_KP8]:
+        cam.rotate(2.5, 0, 0)
+    elif keys[pg.K_KP2]:
+        cam.rotate(-2.5, 0, 0)
 
     #cam.rotate(0,0,1)
     cam.display(objects, perspective) #display all the objects to the screen
